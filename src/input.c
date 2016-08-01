@@ -124,6 +124,12 @@ get_parameters(int argc, char *argv[], struct user_data *ud)
 {
 	int i, quiet;
 
+	if (strncmp(argv[0], "attenuator_lab_brick\0",
+		    strlen("attenuator_lab_brick") + 1) != 0) {
+		printf(ERR "Wrong input\n");
+		return 1;
+	}
+
 	quiet = check_quiet(argc, argv);
 
 	for (i = 1; i < argc; i++) {
