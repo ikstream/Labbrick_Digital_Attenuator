@@ -54,7 +54,8 @@ start_iperf_server()
 {
 	u_name="$1"
 	ip="$2"
-	ssh ${u_name}@${ip} "iperf -s"
+	ret=$(ssh ${u_name}@${ip} "iperf -s" > ${LOG_PATH}/${$log_name})
+	check_ret_val $? "Failed to start iperf server on ${ip}: $ret"
 }
 
 # start iperf client
@@ -70,7 +71,8 @@ start_iperf_client()
 	ip="$2"
 	remote_ip="$3"
 
-	ret=$(ssh ${u_name}@${ip} "iperf -c $remote_ip" > ${LOG_PATH}/{$log_name} 1>/dev/null 2>&1)
+	ret=$(ssh ${u_name}@${ip} "iperf -c $remote_ipi" > ${LOG_PATH}/{$log_name})
+	check_ret_val $? "Failed to start iperf client on ${ip}: $ret"
 }
 
 # start attenuators, get the attenuation up
