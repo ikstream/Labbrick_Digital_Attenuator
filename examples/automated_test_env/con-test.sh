@@ -194,7 +194,7 @@ main()
 	done
 
 	printf "${INFO} Starting conn-test script\n"
-	printf "\t\tUsing ${config_path}/${CONFFILE}\n"
+	printf "\t\tUsing ${config_path}\n"
 	printf "\t\tUsing ${log_path}/${LOGFILE}\n"
 	ret="$(source ${config_path} 2>&1)"
 	check_ret_val $? "$ret"
