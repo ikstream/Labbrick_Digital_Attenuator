@@ -12,7 +12,7 @@ FAILURE=1
 
 VERBOSE=n
 
-LOGPATH="./con-test_logs"
+LOGPATH="con-test_logs"
 
 # Test if getopt works as expected
 #
@@ -31,7 +31,8 @@ check_dependecies()
 	printf "${INFO} Checking dependencies on $HOSTNAME\n"
 	test_get_opt
 	check_ret_val "$?" "`getopt --test` failed in this environment."
-
+	hash sshpass 2>/dev/null
+	check_ret_val "$?" "sshpass is not installed"
 	printf "${INFO} All checks passed on $HOSTNAME\n"
 }
 
@@ -52,10 +53,16 @@ check_remote_deps()
 #
 start_iperf_server()
 {
-	u_name="$1"
-	ip="$2"
-	ret=$(ssh ${u_name}@${ip} "iperf -s" > ${LOG_PATH}/${$log_name})
-	check_ret_val $? "Failed to start iperf server on ${ip}: $ret"
+	run="$1"
+	log_name="con-test-server-run-${run}-$(date +%F).log"
+
+	iperf_pid=$(ps | awk '/[i]perf/{ print $1 }')
+	if [ -z "$iperf_pid" ]; then
+		kill -9 $iperf_pid
+	fi
+
+	ret=$(sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} "iperf -s" >> ${LOG_PATH}/${log_name})
+	check_ret_val $? "Failed to start iperf server on ${SERVER_IP}: $ret"
 }
 
 # start iperf client
@@ -67,12 +74,16 @@ start_iperf_server()
 #
 start_iperf_client()
 {
-	u_name="$1"
-	ip="$2"
-	remote_ip="$3"
+	run=$1
+	log_name="con-test-client-run-${run}-$(date +%F).log"
 
-	ret=$(ssh ${u_name}@${ip} "iperf -c $remote_ipi" > ${LOG_PATH}/{$log_name})
-	check_ret_val $? "Failed to start iperf client on ${ip}: $ret"
+	iperf_pid=$(ps | awk '/[i]perf/{ print $1 }')
+	if [ -z "$iperf_pid" ]; then
+		kill -9 $iperf_pid
+	fi
+
+	ret=$(sshpass - p "$CLIENT_PASSWORD" ssh ${CLIENT_USER}@${CLIENT_IP} "iperf -c $SERVER_WIFI_IP" >> ${LOG_PATH}/${log_name})
+	check_ret_val $? "Failed to start iperf client on ${CLIENT_IP}: $ret"
 }
 
 # start attenuators, get the attenuation up
@@ -120,7 +131,7 @@ update_package()
 #
 call_help()
 {
-	printf "conn-test help:\n\n"
+	printf "con-test help:\n\n"
 	printf "\t -c, --config:\t provide path to conn-test.conf, default ./conn-test.conf \n\n"
 	printf "\t -h, --help:\t call this overview\n\n"
 	printf "\t -l, --logfile\t path to log file to store output, default ./conn-test.log \n\n"
@@ -157,7 +168,7 @@ main()
 	loptions=config:,help,logfile:,verbose
 	
 	config_path="con-test.conf"
-	log_path="con-test_logs"
+	LOG_PATH="con-test_logs"
 	
 	check_dependecies
 	! parsed=$(getopt --options=$options --longoptions=$loptions --name "$0" -- "$args")
@@ -177,7 +188,7 @@ main()
 				exit $SUCCESS
 				;;
 			-l | --logfile)
-				log_path=$2
+				LOG_PATH=$2
 				shift 2
 				;;
 			-v | --verbose)
@@ -195,24 +206,26 @@ main()
 
 	printf "${INFO} Starting conn-test script\n"
 	printf "\t\tUsing ${config_path}\n"
-	printf "\t\tUsing ${log_path}\n"
-	ret="$(source ${config_path} 2>&1)"
-	check_ret_val $? "$ret"
+	printf "\t\tUsing ${LOG_PATH}/\n"
+	if [ ! -f "$config_path" ]; then
+		printf "${ERROR} ${config_path} does not exist, or can not be accessed"
+		exit $FAILURE
+	fi
+	source ${config_path}
 
-	for i in {1..${NR_RUNS}}; do
-		par='$ATTENUATOR_PARAMS_'
-		update_pkg='$UPDATE_PKG_'
-		printf "Starting test run $i with parameters: $par$i"
+	mkdir -p $LOG_PATH
+
+	for i in $(seq 1 ${NR_RUNS}); do
+		printf "${INFO} Starting test run $i with parameters: ${ATTENUATOR_PARAMS[${i} - 1]}\n"
 
 		#start measurement
-		start_iperf_server "$SERVER_USER" "$SERVER_IP"
-		start_iperf_client "$CLIENT_USER" "$CLIENT_IP" "$SERVER_IP"
+		start_iperf_server "$i"
+		start_iperf_client "$i"
 
-		start_antennuator "$par$i"
+		start_antennuator ${ATTENUATOR_PARAMS[${i} - 1]}
 		if [ -z "$update_pkg$i" ]; then
-			update_package "$SERVER_USER" "$SERVER_IP" "$update_pkg$i"
-
-			update_package "$CLIENT_USER" "$_IP" "$update_pkg$i"
+			update_package "$SERVER_USER" "$SERVER_IP" "${UPDATE_PKG[$i - 1]}"
+			update_package "$CLIENT_USER" "$CLIENT_IP" "${UPDATE_PKG[$i - 1]}"
 		fi
 	done
 }
