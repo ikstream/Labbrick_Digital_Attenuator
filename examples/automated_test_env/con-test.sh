@@ -199,7 +199,7 @@ main()
 	ret="$(source ${config_path} 2>&1)"
 	check_ret_val $? "$ret"
 
-	for i in {1..${NR_ATT_RUNS}}; do
+	for i in {1..${NR_RUNS}}; do
 		par='$ATTENUATOR_PARAMS_'
 		update_pkg='$UPDATE_PKG_'
 		printf "Starting test run $i with parameters: $par$i"
