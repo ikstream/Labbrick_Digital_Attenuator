@@ -156,8 +156,8 @@ main()
 	options=c:hl:v
 	loptions=config:,help,logfile:,verbose
 	
-	config_path="./conn-test.conf"
-	log_path="./con-test_logs"
+	config_path="con-test.conf"
+	log_path="con-test_logs"
 	
 	check_dependecies
 	! parsed=$(getopt --options=$options --longoptions=$loptions --name "$0" -- "$args")
