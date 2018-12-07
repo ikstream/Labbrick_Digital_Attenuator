@@ -194,6 +194,7 @@ main()
 				;;
 			-v | --verbose)
 				VERBOSE=y
+				set -x
 				shift
 				;;
 			--)
