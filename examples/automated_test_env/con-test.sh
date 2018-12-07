@@ -54,7 +54,7 @@ check_remote_deps()
 start_iperf_server()
 {
 	run="$1"
-	log_name="con-test-server-run-${run}-$(date +%F).log"
+	log_name="con-test-server-run-${run}-$(date +%F-%H-%M-%S).log"
 
 	iperf_pid=$(sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} "ps" | awk '/[i]perf/{ print $1 }')
 	if [ ! -z "$iperf_pid" ]; then
@@ -62,7 +62,7 @@ start_iperf_server()
 		check_ret_val "$?" "Could not kill iperf: $iperf_pid - $ret"
 	fi
 
-	ret=$(sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} "iperf -s" >> ${LOG_PATH}/${log_name})
+	ret=$(nohup sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} "iperf -s" >> ${LOG_PATH}/${log_name} &)
 	check_ret_val $? "Failed to start iperf server on ${SERVER_IP}: $ret"
 }
 
@@ -76,7 +76,7 @@ start_iperf_server()
 start_iperf_client()
 {
 	run=$1
-	log_name="con-test-client-run-${run}-$(date +%F).log"
+	log_name="con-test-client-run-${run}-$(date +%F-%H-%M-%S).log"
 
 	iperf_pid=$(sshpass -p "$CLIENT_PASSWORD" ssh ${CLIENT_USER}@${CLIENT_IP} "ps" | awk '/[i]perf/{ print $1 }')
 	if [ ! -z "$iperf_pid" ]; then
@@ -84,7 +84,7 @@ start_iperf_client()
 		check_ret_val "$?" "Could not kill iperf: $iperf_pid - $ret"
 	fi
 
-	ret=$(sshpass - p "$CLIENT_PASSWORD" ssh ${CLIENT_USER}@${CLIENT_IP} "iperf -c $SERVER_WIFI_IP" >> ${LOG_PATH}/${log_name})
+	ret=$(nohup sshpass - p "$CLIENT_PASSWORD" ssh ${CLIENT_USER}@${CLIENT_IP} "iperf -c $SERVER_WIFI_IP" >> ${LOG_PATH}/${log_name} &)
 	check_ret_val $? "Failed to start iperf client on ${CLIENT_IP}: $ret"
 }
 
@@ -202,6 +202,7 @@ main()
 				;;
 			*)
 				break
+				shift
 				;;
 		esac
 	done
