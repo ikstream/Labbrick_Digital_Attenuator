@@ -57,7 +57,7 @@ start_iperf_server()
 	log_name="con-test-server-run-${run}-$(date +%F).log"
 
 	iperf_pid=$(sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} "ps" | awk '/[i]perf/{ print $1 }')
-	if [ -z "$iperf_pid" ]; then
+	if [ ! -z "$iperf_pid" ]; then
 		ret=$(sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} "kill -9 $iperf_pid")
 		check_ret_val "$?" "Could not kill iperf: $iperf_pid - $ret"
 	fi
@@ -79,7 +79,7 @@ start_iperf_client()
 	log_name="con-test-client-run-${run}-$(date +%F).log"
 
 	iperf_pid=$(sshpass -p "$CLIENT_PASSWORD" ssh ${CLIENT_USER}@${CLIENT_IP} "ps" | awk '/[i]perf/{ print $1 }')
-	if [ -z "$iperf_pid" ]; then
+	if [ ! -z "$iperf_pid" ]; then
 		ret=$(sshpass -p "$CLIENT_PASSWORD" ssh ${CLIENT_USER}@${CLIENT_IP} "kill -9 $iperf_pid")
 		check_ret_val "$?" "Could not kill iperf: $iperf_pid - $ret"
 	fi
