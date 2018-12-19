@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-set -o pipefail -o noclobber -o nounset
+set -o pipefail -o noclobber
+set -x
 
 # output options
 ERROR="$(tput bold; tput setaf 1)[Error]:$(tput sgr0)"
@@ -56,13 +57,18 @@ start_iperf_server()
 	run="$1"
 	log_name="con-test-server-run-${run}-$(date +%F-%H-%M-%S).log"
 
+	param="-s"
+	if [ -n "$IPERF_PARAM_SERVER" ]; then
+		param="${param} ${IPERF_PARAM_SERVER}"
+	fi
+
 	iperf_pid=$(sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} "ps" | awk '/[i]perf/{ print $1 }')
 	if [ ! -z "$iperf_pid" ]; then
 		ret=$(sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} "kill -9 $iperf_pid")
 		check_ret_val "$?" "Could not kill iperf: $iperf_pid - $ret"
 	fi
 
-	ret=$(nohup sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} "iperf -s" >> ${LOG_PATH}/${log_name} &)
+	ret=$(nohup sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} "iperf $param" >> ${LOG_PATH}/${log_name} &)
 	check_ret_val $? "Failed to start iperf server on ${SERVER_IP}: $ret"
 }
 
@@ -78,13 +84,18 @@ start_iperf_client()
 	run=$1
 	log_name="con-test-client-run-${run}-$(date +%F-%H-%M-%S).log"
 
+	param="-c"
+	if [ -n "$IPERF_PARAM_CLIENT" ]; then
+		param="${param} ${IPERF_PARAM_CLIENT}"
+	fi
+
 	iperf_pid=$(sshpass -p "$CLIENT_PASSWORD" ssh ${CLIENT_USER}@${CLIENT_IP} "ps" | awk '/[i]perf/{ print $1 }')
 	if [ ! -z "$iperf_pid" ]; then
 		ret=$(sshpass -p "$CLIENT_PASSWORD" ssh ${CLIENT_USER}@${CLIENT_IP} "kill -9 $iperf_pid")
 		check_ret_val "$?" "Could not kill iperf: $iperf_pid - $ret"
 	fi
 
-	ret=$(nohup sshpass - p "$CLIENT_PASSWORD" ssh ${CLIENT_USER}@${CLIENT_IP} "iperf -c $SERVER_WIFI_IP" >> ${LOG_PATH}/${log_name} &)
+	ret=$(nohup sshpass -p "$CLIENT_PASSWORD" ssh ${CLIENT_USER}@${CLIENT_IP} "iperf $param $SERVER_WIFI_IP" >> ${LOG_PATH}/${log_name} &)
 	check_ret_val $? "Failed to start iperf client on ${CLIENT_IP}: $ret"
 }
 
@@ -97,6 +108,7 @@ start_antennuator()
 {
 	params="$@"
 	/usr/local/bin/attenuator_lab_brick $params
+	check_ret_val $? "Could not start the attenuation programm"
 }
 
 # copy package to device and update it
@@ -164,7 +176,7 @@ check_ret_val()
 #
 main()
 {
-	args="$@"
+	args=$@
 	options=c:hl:v
 	loptions=config:,help,logfile:,verbose
 	
@@ -172,7 +184,7 @@ main()
 	LOG_PATH="con-test_logs"
 	
 	check_dependecies
-	! parsed=$(getopt --options=$options --longoptions=$loptions --name "$0" -- "$args")
+	! parsed=$(getopt --options=$options --longoptions=$loptions --name "$0" -- $args)
 	if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
 	    exit $FAILURE
 	fi
@@ -194,15 +206,14 @@ main()
 				;;
 			-v | --verbose)
 				VERBOSE=y
-				set -x
 				shift
 				;;
 			--)
+				shift
 				break
 				;;
 			*)
 				break
-				shift
 				;;
 		esac
 	done
@@ -233,4 +244,4 @@ main()
 	done
 }
 
-main "$@"
+main $@
