@@ -107,7 +107,7 @@ start_iperf_client()
 start_antennuator()
 {
 	params="$@"
-	/usr/local/bin/attenuator_lab_brick $params
+	sudo /usr/local/bin/attenuator_lab_brick $params
 	check_ret_val $? "Could not start the attenuation programm"
 }
 
