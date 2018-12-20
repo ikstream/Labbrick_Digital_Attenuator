@@ -182,6 +182,7 @@ call_help()
 	printf "\t -h, --help:\t call this overview\n\n"
 	printf "\t -l, --logfile\t path to log file to store output, default ./conn-test.log \n\n"
 	printf "\t -v, --verbose\t output more information during a run\n"
+	printf "\t -V, --version\t print con-test version\n"
 }
 
 # Check if value equals zero
