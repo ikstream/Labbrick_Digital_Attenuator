@@ -22,6 +22,10 @@ LOGPATH="con-test_logs"
 
 SUDO=''
 
+# 0 -> certificate, 1 -> password
+S_AUTH=1
+C_AUTH=1
+
 # Test if getopt works as expected
 #
 test_get_opt()
@@ -39,8 +43,35 @@ check_dependecies()
 	printf "${INFO} Checking dependencies on $HOSTNAME\n"
 	test_get_opt
 	check_ret_val "$?" "`getopt --test` failed in this environment."
-	hash sshpass 2>/dev/null
-	check_ret_val "$?" "sshpass is not installed"
+	if [ -z $SERVER_CERTIFICATE ] || [ -z $CLIENT_CERTIFICATE ]; then
+		hash sshpass 2>/dev/null
+		if (( $? != 0 )); then
+			printf "Please provide client/server certificate, or"
+			printf " install sshpass and provide passwords\n"
+			exit $FAILURE
+		fi
+
+		if [ -z $SERVER_PASSWORD ]; then
+			if [ ! -f $SERVER_CERTIFICATE ] ||
+			   [ -z $SERVER_CERTIFICATE ]; then
+				printf "No server password set, no certificate"
+				printf " provided/accessible.\n"
+				exit $FAILURE
+			fi
+			S_AUTH=0
+		fi
+
+		if [ -z $CLIENT_PASSWORD ]; then
+			if [ ! -f $CLIENT_CERTIFICATE ] ||
+			   [ -z $CLIENT_CERTIFICATE ];then
+				printf "No client password set, no certificate"
+				printf " provided/accessible.\n"
+				exit $FAILURE
+			fi
+			C_AUTH=0
+		fi
+	fi
+
 	if (( $EUID != 0 )); then
 		hash sudo 2>/dev/null
 		check_ret_val "$?" "Please run as root, or _install_ sudo."
@@ -74,14 +105,36 @@ start_iperf_server()
 		param="${param} ${IPERF_PARAM_SERVER[${i} - 1]}"
 	fi
 
-	iperf_pid=$(sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} "ps" | awk '/[i]perf/{ print $1 }')
-	if [ -n "$iperf_pid" ]; then
-		ret=$(sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} "kill -9 $iperf_pid")
-		check_ret_val "$?" "Could not kill iperf: $iperf_pid - $ret"
-	fi
+	if (( $S_AUTH == 1 )); then
+		iperf_pid=$(sshpass -p "$SERVER_PASSWORD" \
+			    ssh ${SERVER_USER}@${SERVER_IP} "ps" \
+			    | awk '/[i]perf/{ print $1 }')
+		if [ -n "$iperf_pid" ]; then
+			ret=$(sshpass -p "$SERVER_PASSWORD" \
+			      ssh ${SERVER_USER}@${SERVER_IP} \
+			      "kill -9 $iperf_pid")
+			check_ret_val "$?" "Could not kill iperf: $iperf_pid - $ret"
+		fi
 
-	ret=$(nohup sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} "iperf $param" >> ${LOG_PATH}/${log_name} &)
-	check_ret_val $? "Failed to start iperf server on ${SERVER_IP}: $ret"
+		ret=$(nohup sshpass -p "$SERVER_PASSWORD" \
+		      ssh ${SERVER_USER}@${SERVER_IP} \
+		      "iperf $param" >> ${LOG_PATH}/${log_name} &)
+		check_ret_val $? "Failed to start iperf server on ${SERVER_IP}: $ret"
+	else
+		iperf_pid=$(ssh -i $SERVER_CERTIFICATE \
+			    ${SERVER_USER}@${SERVER_IP} "ps" \
+			    | awk '/[i]perf/{ print $1 }')
+		if [ -n "$iperf_pid" ]; then
+			ret=$(ssh -i $SERVER_CERTIFICATE \
+			      ${SERVER_USER}@${SERVER_IP} "kill -9 $iperf_pid")
+			check_ret_val "$?" "Could not kill iperf: $iperf_pid - $ret"
+		fi
+
+		ret=$(ssh -i $SERVER_CERTIFICATE \
+		      ${SERVER_USER}@${SERVER_IP} \
+		      "iperf $param" >> ${LOG_PATH}/${log_name} &)
+		check_ret_val $? "Failed to start iperf server on ${SERVER_IP}: $ret"
+	fi
 }
 
 # start iperf client
@@ -101,14 +154,39 @@ start_iperf_client()
 		param="${IPERF_PARAM_CLIENT[${i} - 1]} $param"
 	fi
 
-	iperf_pid=$(sshpass -p "$CLIENT_PASSWORD" ssh ${CLIENT_USER}@${CLIENT_IP} "ps" | awk '/[i]perf/{ print $1 }')
-	if [ -n "$iperf_pid" ]; then
-		ret=$(sshpass -p "$CLIENT_PASSWORD" ssh ${CLIENT_USER}@${CLIENT_IP} "kill -9 $iperf_pid")
-		check_ret_val "$?" "Could not kill iperf: $iperf_pid - $ret"
-	fi
+	if (( $C_AUTH == 1 )); then
+		iperf_pid=$(sshpass -p "$CLIENT_PASSWORD" \
+			    ssh ${CLIENT_USER}@${CLIENT_IP} "ps" \
+			    | awk '/[i]perf/{ print $1 }')
+		if [ -n "$iperf_pid" ]; then
+			ret=$(sshpass -p "$CLIENT_PASSWORD" \
+			      ssh ${CLIENT_USER}@${CLIENT_IP} \
+			      "kill -9 $iperf_pid")
+			check_ret_val "$?" "Could not kill iperf: $iperf_pid - $ret"
+		fi
 
-	ret=$(nohup sshpass -p "$CLIENT_PASSWORD" ssh ${CLIENT_USER}@${CLIENT_IP} "iperf $param $SERVER_WIFI_IP" >> ${LOG_PATH}/${log_name} &)
-	check_ret_val $? "Failed to start iperf client on ${CLIENT_IP}: $ret"
+		ret=$(nohup sshpass -p "$CLIENT_PASSWORD" \
+		      ssh ${CLIENT_USER}@${CLIENT_IP} \
+		      "iperf $param $SERVER_WIFI_IP" \
+		      >> ${LOG_PATH}/${log_name} &)
+		check_ret_val $? "Failed to start iperf client on ${CLIENT_IP}: $ret"
+	else
+		iperf_pid=$(ssh -i $CLIENT_CERTIFICATE \
+			    ${CLIENT_USER}@${CLIENT_IP} "ps" \
+			    | awk '/[i]perf/{ print $1 }')
+		if [ -n "$iperf_pid" ]; then
+			ret=$(ssh -i $CLIENT_CERTIFICATE \
+			      ${CLIENT_USER}@${CLIENT_IP} \
+			      "kill -9 $iperf_pid")
+			check_ret_val "$?" "Could not kill iperf: $iperf_pid - $ret"
+		fi
+
+		ret=$(nohup ssh -i $CLIENT_CERTIFICATE \
+		      ${CLIENT_USER}@${CLIENT_IP} \
+		      "iperf $param $SERVER_WIFI_IP" \
+		      >> ${LOG_PATH}/${log_name} &)
+		check_ret_val $? "Failed to start iperf client on ${CLIENT_IP}: $ret"
+	fi
 }
 
 # start attenuators, get the attenuation up
@@ -137,6 +215,7 @@ update_package()
 	ip="${PARAMS[1]}"
 	path="${PARAMS[2]}"
 	pw="${PARAMS[3]}"
+	key="${PARAMS[4]}"
 
 	if [ ! -f "$path" ]; then
 		printf "${ERROR} ${path} does not exist or cannot be accessed"
@@ -144,29 +223,35 @@ update_package()
 	fi
 
 	pkg_name=$(basename "$path")
-	if [ -n "$pw" ]; then
+	if [ -n "$key" ]; then
+		scp -i $key ${path} ${u_name}@${ip}:/tmp/
+		check_ret_val $? "Failed to copy $pkg_name to $ip"
+
+		ssh -i $key ${u_name}@${ip} "opkg update" 1>/dev/null 2>&1
+
+		ret=$(ssh -i $key ${u_name}@${ip} \
+		      "opkg remove --force-depends $pkg_name" 1>/dev/null 2>&1)
+		check_ret_val $? "ssh on $ip returned $?: Failed to run opkg remove"
+
+		ret=$(ssh -i $key ${u_name}@${ip} \
+		      "opkg install --force-reinstall /tmp/${pkg_name}" \
+		      1>/dev/null 2>&1)
+		check_ret_val $? "ssh on $ip returned $?: Failed to run opkg install"
+	elif [ -n "$pw" ]; then
 		sshpass -p $pw scp ${path} ${u_name}@${ip}:/tmp/
 		check_ret_val $? "Failed to copy $pkg_name to $ip"
 
-		sshpass -p $pw ssh ${u_name}@${ip} "opkg update" 1>/dev/null 2>&1
+		sshpass -p $pw ssh ${u_name}@${ip} "opkg update" \
+			1>/dev/null 2>&1
 
 		ret=$(sshpass -p $pw ssh ${u_name}@${ip} \
-			"opkg remove --force-depends $pkg_name" 1>/dev/null 2>&1)
+			"opkg remove --force-depends $pkg_name" \
+			1>/dev/null 2>&1)
 		check_ret_val $? "ssh on $ip returned $?: Failed to run opkg remove"
 
 		ret=$(sshpass -p $pw ssh ${u_name}@${ip} \
-			"opkg install --force-reinstall /tmp/${pkg_name}" 1>/dev/null 2>&1)
-		check_ret_val $? "ssh on $ip returned $?: Failed to run opkg install"
-	else
-		scp ${path} ${u_name}@${ip}:/tmp/
-		check_ret_val $? "Failed to copy $pkg_name to $ip"
-
-		ssh ${u_name}@${ip} "opkg update" 1>/dev/null 2>&1
-
-		ret=$(ssh ${u_name}@${ip} "opkg remove --force-depends $pkg_name" 1>/dev/null 2>&1)
-		check_ret_val $? "ssh on $ip returned $?: Failed to run opkg remove"
-
-		ret=$(ssh ${u_name}@${ip} "opkg install --force-reinstall /tmp/${pkg_name}" 1>/dev/null 2>&1)
+		      "opkg install --force-reinstall /tmp/${pkg_name}" \
+		      1>/dev/null 2>&1)
 		check_ret_val $? "ssh on $ip returned $?: Failed to run opkg install"
 	fi
 
@@ -223,7 +308,6 @@ main()
 	config_path="con-test.conf"
 	LOG_PATH="con-test_logs"
 	
-	check_dependecies
 	! parsed=$(getopt --options=$options --longoptions=$loptions --name "$0" -- $args)
 	if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
 	    exit $FAILURE
@@ -271,6 +355,8 @@ main()
 	fi
 	source ${config_path}
 
+	check_dependecies
+
 	mkdir -p $LOG_PATH
 
 	for i in $(seq 1 ${NR_RUNS}); do
@@ -280,13 +366,15 @@ main()
 		if [ -n "${UPDATE_PKG[${i} - 1]}" ]; then
 			printf "${INFO} update package: ${UPDATE_PKG[${i} - 1]}"
 
-			PARAMS=("$SERVER_USER" "$SERVER_IP"
-				"${UPDATE_PKG[$i - 1]}" "$SERVER_PASSWORD")
+			PARAMS=("$SERVER_USER" "$SERVER_IP" \
+				"${UPDATE_PKG[$i - 1]}" "$SERVER_PASSWORD" \
+				"$SERVER_CERTIFICATE")
 			update_package $PARAMS
 			unset $PARAMS
 
 			PARAMS=("$CLIENT_USER" "$CLIENT_IP"
-				"${UPDATE_PKG[${i} - 1]}" "$CLIENT_PASSWORD")
+				"${UPDATE_PKG[${i} - 1]}" "$CLIENT_PASSWORD" \
+				"$CLIENT_CERTIFICATE")
 			update_package $PARAMS
 			unset $PARAMS
 		fi
