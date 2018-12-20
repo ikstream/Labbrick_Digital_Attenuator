@@ -20,6 +20,8 @@ VERBOSE=n
 
 LOGPATH="con-test_logs"
 
+SUDO=''
+
 # Test if getopt works as expected
 #
 test_get_opt()
@@ -39,6 +41,11 @@ check_dependecies()
 	check_ret_val "$?" "`getopt --test` failed in this environment."
 	hash sshpass 2>/dev/null
 	check_ret_val "$?" "sshpass is not installed"
+	if (( $EUID != 0 )); then
+		hash sudo 2>/dev/null
+		check_ret_val "$?" "Please run as root, or _install_ sudo."
+		SUDO='sudo'
+	fi
 	printf "${INFO} All checks passed on $HOSTNAME\n"
 }
 
@@ -112,7 +119,7 @@ start_iperf_client()
 start_antennuator()
 {
 	params="$@"
-	sudo /usr/local/bin/attenuator_lab_brick $params
+	$SUDO /usr/local/bin/attenuator_lab_brick $params
 	check_ret_val $? "Could not start the attenuation programm"
 }
 
