@@ -3,6 +3,11 @@
 set -o pipefail -o noclobber
 set -x
 
+# version numbers
+MAJOR=0
+MINOR=1
+RELEASE=1
+
 # output options
 ERROR="$(tput bold; tput setaf 1)[Error]:$(tput sgr0)"
 WARNING="$(tput bold ; tput setaf 3)[Warning]:$(tput sgr0)"
@@ -189,6 +194,13 @@ check_ret_val()
 	fi
 }
 
+# print version of con-test
+#
+print_version()
+{
+	printf "${INFO} You are using Version %d.%d-%d\n" $MAJOR $MINOR $RELEASE
+}
+
 # main function
 #
 # Arguments:
@@ -197,8 +209,8 @@ check_ret_val()
 main()
 {
 	args=$@
-	options=c:hl:v
-	loptions=config:,help,logfile:,verbose
+	options=c:hl:vV
+	loptions=config:,help,logfile:,verbose,version
 	
 	config_path="con-test.conf"
 	LOG_PATH="con-test_logs"
@@ -227,6 +239,10 @@ main()
 			-v | --verbose)
 				VERBOSE=y
 				shift
+				;;
+			-V | --version)
+				print_version
+				exit $SUCCESS
 				;;
 			--)
 				shift
