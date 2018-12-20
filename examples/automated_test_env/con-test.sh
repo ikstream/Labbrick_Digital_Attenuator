@@ -63,8 +63,8 @@ start_iperf_server()
 	log_name="con-test-server-run-${run}-$(date +%F-%H-%M-%S).log"
 
 	param="-s"
-	if [ -n "$IPERF_PARAM_SERVER" ]; then
-		param="${param} ${IPERF_PARAM_SERVER}"
+	if [ -n "${IPERF_PARAM_SERVER[${i} - 1]}" ]; then
+		param="${param} ${IPERF_PARAM_SERVER[${i} - 1]}"
 	fi
 
 	iperf_pid=$(sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} "ps" | awk '/[i]perf/{ print $1 }')
@@ -90,8 +90,8 @@ start_iperf_client()
 	log_name="con-test-client-run-${run}-$(date +%F-%H-%M-%S).log"
 
 	param="-c"
-	if [ -n "$IPERF_PARAM_CLIENT" ]; then
-		param="${param} ${IPERF_PARAM_CLIENT}"
+	if [ -n "${IPERF_PARAM_CLIENT[${i} - 1]}" ]; then
+		param="${IPERF_PARAM_CLIENT[${i} - 1]} $param"
 	fi
 
 	iperf_pid=$(sshpass -p "$CLIENT_PASSWORD" ssh ${CLIENT_USER}@${CLIENT_IP} "ps" | awk '/[i]perf/{ print $1 }')
