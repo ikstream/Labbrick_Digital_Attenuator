@@ -121,9 +121,10 @@ start_antennuator()
 #
 update_package()
 {
-	u_name="$1"
-	ip="$2"
-	path="$3"
+	u_name="${PARAMS[0]}"
+	ip="${PARAMS[1]}"
+	path="${PARAMS[2]}"
+	pw="${PARAMS[3]}"
 
 	if [ ! -f "$path" ]; then
 		printf "${ERROR} ${path} does not exist or cannot be accessed"
@@ -131,12 +132,31 @@ update_package()
 	fi
 
 	pkg_name=$(basename "$path")
-	scp ${path} ${u_name}@${ip}:/tmp/
-	check_ret_val $? "Failed to copy $pkg_name to $ip"
-	ret=$(ssh ${u_name}@${ip} "opkg remove --force-depends $pkg_name" 1>/dev/null 2>&1)
-	check_ret_val $? "ssh on $ip returned $?: $ret"
-	ret=$(ssh ${u_name}@${ip} "opkg install $pkg_name" 1>/dev/null 2>&1)
-	check_ret_val $? "ssh on $ip returned $?: $ret"
+	if [ -n "$pw" ]; then
+		sshpass -p $pw scp ${path} ${u_name}@${ip}:/tmp/
+		check_ret_val $? "Failed to copy $pkg_name to $ip"
+
+		sshpass -p $pw ssh ${u_name}@${ip} "opkg update" 1>/dev/null 2>&1
+
+		ret=$(sshpass -p $pw ssh ${u_name}@${ip} \
+			"opkg remove --force-depends $pkg_name" 1>/dev/null 2>&1)
+		check_ret_val $? "ssh on $ip returned $?: Failed to run opkg remove"
+
+		ret=$(sshpass -p $pw ssh ${u_name}@${ip} \
+			"opkg install --force-reinstall /tmp/${pkg_name}" 1>/dev/null 2>&1)
+		check_ret_val $? "ssh on $ip returned $?: Failed to run opkg install"
+	else
+		scp ${path} ${u_name}@${ip}:/tmp/
+		check_ret_val $? "Failed to copy $pkg_name to $ip"
+
+		ssh ${u_name}@${ip} "opkg update" 1>/dev/null 2>&1
+
+		ret=$(ssh ${u_name}@${ip} "opkg remove --force-depends $pkg_name" 1>/dev/null 2>&1)
+		check_ret_val $? "ssh on $ip returned $?: Failed to run opkg remove"
+
+		ret=$(ssh ${u_name}@${ip} "opkg install --force-reinstall /tmp/${pkg_name}" 1>/dev/null 2>&1)
+		check_ret_val $? "ssh on $ip returned $?: Failed to run opkg install"
+	fi
 
 	return $SUCCESS
 }
@@ -230,17 +250,28 @@ main()
 	mkdir -p $LOG_PATH
 
 	for i in $(seq 1 ${NR_RUNS}); do
-		printf "${INFO} Starting test run $i with parameters: ${ATTENUATOR_PARAMS[${i} - 1]}\n"
+		printf "${INFO} Starting test run $i with parameters:"
+		printf " ${ATTENUATOR_PARAMS[${i} - 1]}\n"
+
+		if [ -n "${UPDATE_PKG[${i} - 1]}" ]; then
+			printf "${INFO} update package: ${UPDATE_PKG[${i} - 1]}"
+
+			PARAMS=("$SERVER_USER" "$SERVER_IP"
+				"${UPDATE_PKG[$i - 1]}" "$SERVER_PASSWORD")
+			update_package $PARAMS
+			unset $PARAMS
+
+			PARAMS=("$CLIENT_USER" "$CLIENT_IP"
+				"${UPDATE_PKG[${i} - 1]}" "$CLIENT_PASSWORD")
+			update_package $PARAMS
+			unset $PARAMS
+		fi
 
 		#start measurement
 		start_iperf_server "$i"
 		start_iperf_client "$i"
 
 		start_antennuator ${ATTENUATOR_PARAMS[${i} - 1]}
-		if [ -z "$update_pkg$i" ]; then
-			update_package "$SERVER_USER" "$SERVER_IP" "${UPDATE_PKG[$i - 1]}"
-			update_package "$CLIENT_USER" "$CLIENT_IP" "${UPDATE_PKG[$i - 1]}"
-		fi
 	done
 }
 
