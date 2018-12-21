@@ -100,6 +100,8 @@ start_iperf_server()
 	run="$1"
 	log_name="con-test-server-run-${run}-$(date +%F-%H-%M-%S).log"
 
+	echo "Attenuation parameter: ${ATTENUATOR_PARAMS[${i} - 1]}" > \
+							${LOG_PATH}/${log_name}
 	param="-s"
 	if [ -n "${IPERF_PARAM_SERVER[${i} - 1]}" ]; then
 		param="${param} ${IPERF_PARAM_SERVER[${i} - 1]}"
@@ -149,6 +151,8 @@ start_iperf_client()
 	run=$1
 	log_name="con-test-client-run-${run}-$(date +%F-%H-%M-%S).log"
 
+	echo "Attenuation parameter: ${ATTENUATOR_PARAMS[${i} - 1]}" > \
+							${LOG_PATH}/${log_name}
 	param="-c"
 	if [ -n "${IPERF_PARAM_CLIENT[${i} - 1]}" ]; then
 		param="${IPERF_PARAM_CLIENT[${i} - 1]} $param"
@@ -265,7 +269,7 @@ call_help()
 	printf "con-test help:\n\n"
 	printf "\t -c, --config:\t provide path to conn-test.conf, default ./conn-test.conf \n\n"
 	printf "\t -h, --help:\t call this overview\n\n"
-	printf "\t -l, --logfile\t path to log file to store output, default ./conn-test.log \n\n"
+	printf "\t -o, --output\t path to log file to store output, default ./conn-test.log \n\n"
 	printf "\t -v, --verbose\t output more information during a run\n"
 	printf "\t -V, --version\t print con-test version\n"
 }
@@ -302,8 +306,8 @@ print_version()
 main()
 {
 	args=$@
-	options=c:hl:vV
-	loptions=config:,help,logfile:,verbose,version
+	options=c:ho:vV
+	loptions=config:,help,output:,verbose,version
 	
 	config_path="con-test.conf"
 	LOG_PATH="con-test_logs"
@@ -324,7 +328,7 @@ main()
 				call_help
 				exit $SUCCESS
 				;;
-			-l | --logfile)
+			-o | --output)
 				LOG_PATH=$2
 				shift 2
 				;;
