@@ -118,7 +118,7 @@ start_iperf_server()
 
 		ret=$(nohup sshpass -p "$SERVER_PASSWORD" \
 		      ssh ${SERVER_USER}@${SERVER_IP} \
-		      "iperf $param" >> ${LOG_PATH}/${log_name} &)
+		      "iperf3 $param" >> ${LOG_PATH}/${log_name} &)
 		check_ret_val $? "Failed to start iperf server on ${SERVER_IP}: $ret"
 	else
 		iperf_pid=$(ssh -i $SERVER_CERTIFICATE \
@@ -132,7 +132,7 @@ start_iperf_server()
 
 		ret=$(ssh -i $SERVER_CERTIFICATE \
 		      ${SERVER_USER}@${SERVER_IP} \
-		      "iperf $param" >> ${LOG_PATH}/${log_name} &)
+		      "iperf3 $param" >> ${LOG_PATH}/${log_name} &)
 		check_ret_val $? "Failed to start iperf server on ${SERVER_IP}: $ret"
 	fi
 }
@@ -167,7 +167,7 @@ start_iperf_client()
 
 		ret=$(nohup sshpass -p "$CLIENT_PASSWORD" \
 		      ssh ${CLIENT_USER}@${CLIENT_IP} \
-		      "iperf $param $SERVER_WIFI_IP" \
+		      "iperf3 $param $SERVER_WIFI_IP" \
 		      >> ${LOG_PATH}/${log_name} &)
 		check_ret_val $? "Failed to start iperf client on ${CLIENT_IP}: $ret"
 	else
@@ -183,7 +183,7 @@ start_iperf_client()
 
 		ret=$(nohup ssh -i $CLIENT_CERTIFICATE \
 		      ${CLIENT_USER}@${CLIENT_IP} \
-		      "iperf $param $SERVER_WIFI_IP" \
+		      "iperf3 $param $SERVER_WIFI_IP" \
 		      >> ${LOG_PATH}/${log_name} &)
 		check_ret_val $? "Failed to start iperf client on ${CLIENT_IP}: $ret"
 	fi
