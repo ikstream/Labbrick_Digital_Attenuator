@@ -113,8 +113,7 @@ check_remote_deps()
 # start iperf server
 #
 # Arguments:
-# u_name - username on the device running the iperf server
-# ip - ip of device assigned to be iperf server
+# run - number of current test, starting with 1
 #
 start_iperf_server()
 {
@@ -165,9 +164,7 @@ start_iperf_server()
 # start iperf client
 #
 # Arguments:
-# u_name - username on the device running the iperf server
-# ip - ip of device assigned to be iperf server
-# remote_ip - ip of iperf server
+# run - number of current test, starting with 1
 #
 start_iperf_client()
 {
@@ -233,8 +230,8 @@ start_antennuator()
 # Arguments:
 # u_name - user name on remote host
 # ip - update package on this host
-# pkg_name - name of package to be updated
 # path - path to package on current host include package name
+# key - path to identity file
 #
 update_package()
 {
