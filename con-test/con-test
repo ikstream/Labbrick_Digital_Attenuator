@@ -37,15 +37,6 @@ SUDO=''
 S_AUTH=1
 C_AUTH=1
 
-# Test if getopt works as expected
-#
-test_get_opt()
-{
-	! getopt --test > /dev/null 
-	if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
-	    return FAILURE
-	fi
-}
 
 # check if all dependencies are installed
 #

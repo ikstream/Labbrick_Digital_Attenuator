@@ -35,6 +35,16 @@ INFO="$(tput bold ; tput setaf 2) [INFO]:$(tput sgr0)"
 SUCCESS=0
 FAILURE=1
 
+# Test if getopt works as expected
+#
+test_get_opt()
+{
+	! getopt --test > /dev/null
+	if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
+	    return FAILURE
+	fi
+}
+
 # Check if value equals zero
 # exits with FAILURE on mismatch
 #
