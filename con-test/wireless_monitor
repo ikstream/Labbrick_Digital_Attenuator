@@ -47,6 +47,19 @@ set_interface_to_monitor()
 	$SUDO ifconfig $interface up
 }
 
+check_monitor()
+{
+	interface=$1
+	if [[ "$(iw dev | awk "/${interface}/{nr[NR+5]}; NR in nr" | \
+			  awk '{print $2}')" == "monitor" ]]; then
+		ret=$SUCCESS
+	else
+		printf "${WARNING} $interface is not in monitor mode\n"
+		ret=$FAILURE
+	fi
+	return $ret
+}
+
 # start tcp dump on the client side
 #
 # Arguemnts:
