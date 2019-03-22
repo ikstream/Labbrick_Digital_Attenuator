@@ -118,6 +118,7 @@ main()
 	args=$@
 	time=0
 	interface=''
+	file_name="con-test-tcpdump-$(date +%F-%H-%M-%S).log"
 
 	test_get_opt
 
