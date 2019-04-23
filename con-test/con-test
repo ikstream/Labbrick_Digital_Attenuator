@@ -67,6 +67,22 @@ stop_file_collect()
 	fi
 }
 
+add_timestamp()
+{
+	time=$1
+	file=$2
+	run=$3
+	append=$4
+
+	while usleep $time
+	do
+		if [ -f '/tmp/stop' ]; then
+			break
+		fi
+		cat $file | while IFS= read -r line; do printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S.%N')" "$line"; done
+	done
+}
+
 # get a single file from target
 #
 # Arguments:
@@ -83,9 +99,7 @@ stop_file_collect()
 #
 get_file()
 {
-
 	file=$1 && shift
-	echo "$file"
 	collect_args=($@)
 	ip=${collect_args[0]}
 	user=${collect_args[1]}
@@ -97,11 +111,6 @@ get_file()
 	time=${collect_args[7]}
 	auth=${collect_args[8]}
 
-	source ./commons
-
-echo "${collect_args[@]}, ${collect_args[8]}"
-echo "AUTH: $auth, CLIENT: $CLIENT, SERVER: $SERVER, LOGPATH: $LOG_PATH"
-
 	if [[ "$side" == "$CLIENT" ]]; then
 		append='client'
 	else
@@ -109,27 +118,18 @@ echo "AUTH: $auth, CLIENT: $CLIENT, SERVER: $SERVER, LOGPATH: $LOG_PATH"
 	fi
 
 	if [[ "$auth" == "$PASSWD" ]]; then
-		sshpass -p "$passwd" ssh ${user}@${ip} 'if [[ -f /tmp/stop ]]; then rm /tmp/stop fi'
+		sshpass -p "$passwd" ssh ${user}@${ip} 'if [[ -f /tmp/stop ]]; then rm /tmp/stop; fi'
 		sshpass -p "$passwd" ssh ${user}@${ip} \
-			"while usleep $time; do
-				if [ -f '/tmp/stop' ]; then \
-					break;
-				fi;
-				cat $file;
-			done" | while IFS= read -r line; do printf '[%s] %s\n' \
-			"$(date '+%Y-%m-%d %H:%M:%S.%N')" "$line"; \
-			done >> ${log}/$(basename $file)_${run}_${append}.log
+			"$(declare -f add_timestamp); \
+			add_timestamp $time $file $run $append" >> \
+			${log}/$(basename $file)_${run}_${append}.log
+
 	else
-		ssh -i $cert ${user}@${ip} 'if [[ -f /tmp/stop ]]; then rm /tmp/stop fi'
+		ssh -i $cert ${user}@${ip} 'if [[ -f /tmp/stop ]]; then rm /tmp/stop; fi'
 		ssh -i $cert ${user}@${ip} \
-			"while usleep $time; do
-				if [ -f '/tmp/stop' ]; then \
-					break;
-				fi;
-				cat $file;
-			done" | while IFS= read -r line; do printf '[%s] %s\n' \
-			"$(date '+%Y-%m-%d %H:%M:%S.%N')" "$line"; \
-			done >> ${log}/$(basename $file)_${run}_${append}.log
+			"$(declare -f add_timestamp); \
+			add_timestamp $time $file $run $append" >> \
+			${log}/$(basename $file)_${run}_${append}.log
 	fi
 }
 export -f get_file
@@ -168,10 +168,10 @@ collect_files()
 		     "$time"
 		     "$auth")
 
-	echo "FILES: ${FILES[@]}"
-	echo "${collect_arg[@]}"
-	printf '%s\0' ${FILES[@]} | xargs -0 -I{} -P 8 bash -c \
-		"get_file {} ${collect_arg[@]}"
+	for file in ${FILES[@]};
+	do
+		get_file $file ${collect_arg[@]} &
+	done
 }
 
 # check dependencies on wifi nodes
@@ -221,9 +221,9 @@ start_iperf()
 		cert=$SERVER_CERTIFICATE
 	fi
 
-	echo "Attenuation parameter: ${ATTENUATOR_PARAMS[${run} - 1]}" > \
+	printf "${INFO} Attenuation parameter: ${ATTENUATOR_PARAMS[${run} - 1]}" > \
 							${LOG_PATH}/${log_name}
-	echo "Iperf parameter: ${param}" >> ${LOG_PATH}/${log_name}
+	printf "${INFO} Iperf parameter: ${param}" >> ${LOG_PATH}/${log_name}
 
 	# use cert or password for authentication
 	if [[ "$auth" == "$PASSWD" ]]; then
@@ -439,7 +439,12 @@ main()
 		collect_files "$i" $CLIENT "$time" "$config_path" &
 		collect_files "$i" $SERVER "$time" "$config_path" &
 
+		sleep 3
+
 		start_antennuator ${ATTENUATOR_PARAMS[${i} - 1]}
+
+		sleep 2
+
 		stop_file_collect "$CLIENT"
 		stop_file_collect "$SERVER"
 	done
