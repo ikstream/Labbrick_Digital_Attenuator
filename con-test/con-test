@@ -34,8 +34,6 @@ LOG_PATH="con-test_logs"
 
 SUDO=''
 
-PIPE=/tmp/con-test-pipe
-
 # create a file on remote system to stop file collection
 #
 # Arguments:
@@ -347,16 +345,13 @@ call_help()
 main()
 {
 	args=$@
-	options=c:ho:vV
-	loptions=config:,help,output:,verbose,version
+	options=c:hmo:vV
+	loptions=config:,help,monitor,output:,verbose,version
+	mon=$OFF
 	
 	config_path="con-test.conf"
 	LOG_PATH="con-test_logs"
 
-	if [[ ! -p $PIPE ]]; then
-		mkfifo $PIPE
-	fi
-	export $PIPE
 	
 	! parsed=$(getopt --options=$options --longoptions=$loptions --name "$0" -- $args)
 	if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
@@ -374,6 +369,10 @@ main()
 			-h | --help)
 				call_help
 				exit $SUCCESS
+				;;
+			-m | --mon)
+				mon=$OFF
+				shift
 				;;
 			-o | --output)
 				LOG_PATH=$2
@@ -432,6 +431,10 @@ main()
 			unset $PARAMS
 		fi
 
+		if [[ "$mon" == "$ON" ]]; then
+			bash wireless_monitor -o $LOG_PATH -c $config_path &
+		fi
+
 		#start measurement
 		start_iperf "$i" "$CLIENT"
 		start_iperf "$i" "$SERVER"
@@ -447,6 +450,10 @@ main()
 
 		stop_file_collect "$CLIENT"
 		stop_file_collect "$SERVER"
+
+		if [[ "$mon" == "$ON" ]]; then
+			touch /tmp/stop_mon
+		fi
 	done
 }
 
