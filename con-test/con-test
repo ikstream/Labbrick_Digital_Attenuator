@@ -199,7 +199,7 @@ start_iperf()
 		log_name="con-test-client-run-${run}-$(date +%F-%H-%M-%S).log"
 		ip=$CLIENT_IP
 		user=$CLIENT_USER
-		param="-c"
+		param="-c $SERVER_WIFI_IP "
 		if [ -n "${IPERF_PARAM_CLIENT[${run} - 1]}" ]; then
 			param="${IPERF_PARAM_CLIENT[${run} - 1]} $param"
 		fi
@@ -436,8 +436,8 @@ main()
 		fi
 
 		#start measurement
-		start_iperf "$i" "$CLIENT"
 		start_iperf "$i" "$SERVER"
+		start_iperf "$i" "$CLIENT"
 
 		collect_files "$i" $CLIENT "$time" "$config_path" &
 		collect_files "$i" $SERVER "$time" "$config_path" &
